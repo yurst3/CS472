@@ -1,5 +1,5 @@
-from CS472.tools.arff import Arff
-from CS472.perceptron.perceptron import PerceptronClassifier
+from tools.arff import Arff
+from perceptron.perceptron import PerceptronClassifier
 import matplotlib.pyplot as plt
 import numpy as np
 import random
