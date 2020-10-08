@@ -1,4 +1,6 @@
 import numpy as np
+import math
+import numpy.random as random
 from sklearn.base import BaseEstimator, ClassifierMixin
 
 ### NOTE: The only methods you are required to have are:
@@ -22,7 +24,7 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         Example:
             mlp = MLPClassifier(lr=.2,momentum=.5,shuffle=False,hidden_layer_widths = [3,3]),  <--- this will create a model with two hidden layers, both 3 nodes wide
         """
-        self.hidden_layer_widths
+        self.hidden_layer_widths = hidden_layer_widths
         self.lr = lr
         self.momentum = momentum
         self.shuffle = shuffle
@@ -40,7 +42,23 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
             self: this allows this to be chained, e.g. model.fit(X,y).predict(X_test)
 
         """
+        self.input_shape = X.shape
         self.initial_weights = self.initialize_weights() if not initial_weights else initial_weights
+
+        num_patterns = X.shape[0]
+        num_targets = y.shape[0]
+
+        # Stochastic weight update (update after each trained pattern)
+        for i in range(num_patterns):
+            pattern = X[i]
+            target = y[i]
+
+            # Iterate through each hidden layer
+            for nodes in self.hidden_layer_widths:
+
+                # Iterate through each node in the hidden layer
+                for j in range(nodes):
+
 
         return self
 
@@ -60,8 +78,25 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         Returns:
 
         """
+        # random weight initialization (small random weights with 0 mean)
+        mean = 0
+        std_dev = 0.1
 
-        return [0]
+        weights = []
+
+        # Generate input --> hidden weights
+        num_input_weights = self.input_shape[1] * self.hidden_layer_widths[0]
+        weights.append(random.normal(mean, std_dev, num_input_weights))
+
+        # Generate hidden --> hidden weights
+        for i in range(1, len(self.hidden_layer_widths)):
+            num_hidden_weights = self.hidden_layer_widths[i-1] * self.hidden_layer_widths[i]
+            weights.append(random.normal(mean, std_dev, num_hidden_weights))
+
+        # Generate hidden --> output weights
+        weights.append(random.normal(mean, std_dev, self.hidden_layer_widths[-1]))
+
+        return weights
 
     def score(self, X, y):
         """ Return accuracy of model on a given dataset. Must implement own score function.
@@ -84,6 +119,9 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         """
         pass
 
+    def _activation(self, net):
+        return 1 / (1 + (math.e ** (-net)))
+
     ### Not required by sk-learn but required by us for grading. Returns the weights.
     def get_weights(self):
-        pass
+        return self.initial_weights
