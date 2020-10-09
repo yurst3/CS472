@@ -52,13 +52,12 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         for i in range(num_patterns):
             pattern = X[i]
             target = y[i]
+            outputs = [[]]
 
-            # Iterate through each hidden layer
-            for nodes in self.hidden_layer_widths:
-
-                # Iterate through each node in the hidden layer
-                for j in range(nodes):
-
+            # input --> hidden output calculations
+            weights = self.initial_weights[0][::self.hidden_layer_widths[0]]
+            net = sum(pattern * weights)
+            outputs[0].append(self._activation(net))
 
         return self
 
