@@ -42,6 +42,7 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
             self: this allows this to be chained, e.g. model.fit(X,y).predict(X_test)
 
         """
+
         self.num_patterns = X.shape[0]
         self.num_predictions = y.shape[1]
         self.pattern_elements = X.shape[1]
@@ -49,32 +50,58 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
         # Stochastic weight update (update after each trained pattern)
         for i in range(self.num_patterns):
-            pattern = X[i]
+
+            # Add bias to pattern
+            pattern = np.concatenate((X[i], np.array([1.])))
             target = y[i]
-            outputs = [[]]
 
-            # input --> hidden layer output calculations
-            for i in range(self.hidden_layer_widths[0]):
-                weights = self.initial_weights[0][i::self.hidden_layer_widths[0]]
-                net = sum(pattern * weights)
-                outputs[0].append(self._activation(net))
+            # Create output container for forward/back pass
+            self.outputs = [[] for i in range(len(self.initial_weights))]
 
-            # hidden --> hidden layer output calculations
-            for i in range(1, len(self.hidden_layer_widths)):
-                outputs.append([])
-                for j in range(self.hidden_layer_widths[i]):
-                    weights = self.initial_weights[i][j::self.hidden_layer_widths[i]]
-                    net = sum(outputs[i - 1] * weights)
-                    outputs[i].append(self._activation(net))
+            # Compute output at each node in all layers
+            self._foward(pattern)
 
-            # hidden --> output layer output calculations
-            outputs.append([])
-            for i in range(self.num_predictions):
-                weights = self.initial_weights[-1][i::self.num_predictions]
-                net = sum(outputs[-2] * weights)
-                outputs[-1].append(self._activation(net))
+            # Compute weight change for each layer
+
 
         return self
+
+    def _activation(self, net):
+        return 1 / (1 + (math.e ** (-net)))
+
+    def _foward(self, pattern):
+        # Assuming 2 layers, each w/ 3 nodes [3, 3]
+        # Weights for input to first hidden layer will be organized as such:
+        # [in1->node1, in1->node2, in1->node3, in2->node1, in2->node2, in2->node3, bias->node1, bias->node2, bias->node3]
+        # Slice to calculate weights for node1 is [0::3], giving 4 total weights
+
+        # input --> hidden layer output calculations
+        for node in range(self.hidden_layer_widths[0]):
+            weights = self.initial_weights[0][node::self.hidden_layer_widths[0]]
+            net = sum(pattern * weights)
+            self.outputs[0].append(self._activation(net))
+
+        # hidden --> hidden layer output calculations
+        for layer in range(1, len(self.hidden_layer_widths)):
+            for node in range(self.hidden_layer_widths[layer]):
+                weights = self.initial_weights[layer][node::self.hidden_layer_widths[layer]]
+                # Add bias to outputs
+                prev_outputs = np.concatenate((self.outputs[layer - 1], np.array([1.])))
+                net = sum(prev_outputs * weights)
+                self.outputs[layer].append(self._activation(net))
+
+        # hidden --> output layer output calculations
+        for node in range(self.num_predictions):
+            weights = self.initial_weights[-1][node::self.num_predictions]
+            # Add bias to outputs
+            prev_outputs = np.concatenate((self.outputs[-2], np.array([1.])))
+            net = sum(prev_outputs * weights)
+            self.outputs[-1].append(self._activation(net))
+
+    def _backward(self, target):
+        weight_changes = [[] for i in range(len(self.outputs))]
+
+        #for layer in
 
     def predict(self, X):
         """ Predict all classes for a dataset X
@@ -93,25 +120,27 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
         """
         # random weight initialization (small random weights with 0 mean)
+        # last weight in each array is the bias
         mean = 0
         std_dev = 0.01
 
         weights = []
 
         # Generate input --> hidden weights
-        num_input_weights = self.pattern_elements * self.hidden_layer_widths[0]
+        num_input_weights = (self.pattern_elements + 1) * self.hidden_layer_widths[0]
         #weights.append(np.zeros(num_input_weights))
         weights.append(random.normal(mean, std_dev, num_input_weights))
 
         # Generate hidden --> hidden weights
         for i in range(1, len(self.hidden_layer_widths)):
-            num_hidden_weights = self.hidden_layer_widths[i-1] * self.hidden_layer_widths[i]
+            num_hidden_weights = (self.hidden_layer_widths[i-1] + 1) * self.hidden_layer_widths[i]
             #weights.append(np.zeros(num_hidden_weights))
             weights.append(random.normal(mean, std_dev, num_hidden_weights))
 
         # Generate hidden --> output weights
         #weights.append(np.zeros(self.hidden_layer_widths[-1] * self.num_predictions))
-        weights.append(random.normal(mean, std_dev, self.hidden_layer_widths[-1] * self.num_predictions))
+        num_output_weights = (self.hidden_layer_widths[-1] + 1) * self.num_predictions
+        weights.append(random.normal(mean, std_dev, num_output_weights))
 
         return weights
 
@@ -135,9 +164,6 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
              shuffling X and y exactly the same way, independently.
         """
         pass
-
-    def _activation(self, net):
-        return 1 / (1 + (math.e ** (-net)))
 
     ### Not required by sk-learn but required by us for grading. Returns the weights.
     def get_weights(self):
