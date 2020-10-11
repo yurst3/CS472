@@ -48,6 +48,9 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         self.pattern_elements = X.shape[1]
         self.initial_weights = self.initialize_weights() if not initial_weights else initial_weights
 
+        self.prev_weight_changes = [np.zeros(i) for i in self.hidden_layer_widths]
+        self.prev_weight_changes.append(np.zeros(self.num_predictions))
+
         # Stochastic weight update (update after each trained pattern)
         for i in range(self.num_patterns):
 
@@ -62,6 +65,11 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
             self._foward(pattern)
 
             # Compute weight change for each layer
+            weight_changes = self._backward(pattern, target)
+
+            # Apply weight changes
+            self.initial_weights = [np.add(self.initial_weights[i], weight_changes[i])
+                                    for i in range(len(weight_changes))]
 
 
         return self
@@ -69,16 +77,23 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
     def _activation(self, net):
         return 1 / (1 + (math.e ** (-net)))
 
+    def _derivative(self, output):
+        return output * (1 - output)
+
     def _foward(self, pattern):
         # Assuming 2 layers, each w/ 3 nodes [3, 3]
         # Weights for input to first hidden layer will be organized as such:
-        # [in1->node1, in1->node2, in1->node3, in2->node1, in2->node2, in2->node3, bias->node1, bias->node2, bias->node3]
+        #
+        # [in1->node1, in1->node2, in1->node3,
+        # in2->node1, in2->node2, in2->node3,
+        # bias->node1, bias->node2, bias->node3]
+        #
         # Slice to calculate weights for node1 is [0::3], giving 4 total weights
 
         # input --> hidden layer output calculations
         for node in range(self.hidden_layer_widths[0]):
             weights = self.initial_weights[0][node::self.hidden_layer_widths[0]]
-            net = sum(pattern * weights)
+            net = np.dot(pattern, weights)
             self.outputs[0].append(self._activation(net))
 
         # hidden --> hidden layer output calculations
@@ -87,7 +102,7 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
                 weights = self.initial_weights[layer][node::self.hidden_layer_widths[layer]]
                 # Add bias to outputs
                 prev_outputs = np.concatenate((self.outputs[layer - 1], np.array([1.])))
-                net = sum(prev_outputs * weights)
+                net = np.dot(prev_outputs, weights)
                 self.outputs[layer].append(self._activation(net))
 
         # hidden --> output layer output calculations
@@ -95,13 +110,53 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
             weights = self.initial_weights[-1][node::self.num_predictions]
             # Add bias to outputs
             prev_outputs = np.concatenate((self.outputs[-2], np.array([1.])))
-            net = sum(prev_outputs * weights)
+            net = np.dot(prev_outputs, weights)
             self.outputs[-1].append(self._activation(net))
 
-    def _backward(self, target):
-        weight_changes = [[] for i in range(len(self.outputs))]
+    def _backward(self, pattern, target):
+        weight_changes = [[] for _ in range(len(self.initial_weights))]
+        prev_deltas = [np.zeros(len(out_array)) for out_array in self.outputs]
 
-        #for layer in
+        for layer in range(1, len(self.initial_weights) + 1):
+            num_nodes = len(self.outputs[-layer])
+            for weight in range(len(self.initial_weights[-layer])):
+                # Calculating weight change for w_i,j
+                # Get output j (current layer)
+                index_j = weight % num_nodes
+                O_j = self.outputs[-layer][index_j]
+
+                # Get output i (previous layer or pattern)
+                if layer != len(self.initial_weights):
+                    index_i = weight % (self.hidden_layer_widths[-layer] + 1)
+                    O_i = self.outputs[-layer - 1][index_i] if index_i < len(self.outputs[-layer - 1]) else 1
+                else:
+                    index_i = weight % len(pattern)
+                    O_i = pattern[index_i]
+
+                # Calculate delta
+                if layer == 1:
+                    delta_j = (target[index_j] - O_j) * self._derivative(O_j)
+                    prev_deltas[-layer][index_j] = delta_j
+                else:
+                    # node_j = 0   [h0->h0, h0->h1, h0->h2,
+                    # node_j = 1   h1->h0, h1->h1, h1->h2,
+                    # node_j = 2   h2->h0, h2->h1, h2->h2,
+                    # node_j = 3   bias->h0, bias->h1, bias->2]
+
+                    node_j = weight // num_nodes
+                    w_jk = self.initial_weights[-layer][node_j:(node_j + num_nodes)]
+                    delta_k = np.array([prev_deltas[-layer + 1][i % len(self.outputs[-layer + 1])]
+                                        for i in range(node_j, node_j + num_nodes)])
+
+                    delta_j = np.dot(delta_k, w_jk) * self._derivative(O_j)
+                    if node_j < num_nodes:
+                        prev_deltas[-layer][node_j] = delta_j
+
+                # Append weight change to array
+                weight_change = self.lr * O_i * delta_j
+                weight_changes[-layer].append(weight_change)
+
+        return weight_changes
 
     def predict(self, X):
         """ Predict all classes for a dataset X
