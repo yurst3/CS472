@@ -51,7 +51,7 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         self.prev_weight_changes = [np.zeros(len(layer)) for layer in self.initial_weights]
 
         # Stochastic weight update (update after each trained pattern)
-        for epoch in range(100):
+        for epoch in range(10):
             for i in range(self.num_patterns):
 
                 # Add bias to pattern
@@ -82,14 +82,17 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         return output * (1 - output)
 
     def _foward(self, pattern):
-        # Assuming 2 layers, each w/ 3 nodes [3, 3]
-        # Weights for input to first hidden layer will be organized as such:
+        # Layer = -2, i->j
+        # [in0->n0, in0->n1, in0->n2, in0->n3,
+        # in1->n0, in1->n1, in1->n2, in1->n3,
+        # bias->n0, bias->n1, bias->n2, bias->n3]
         #
-        # [in1->node1, in1->node2, in1->node3,
-        # in2->node1, in2->node2, in2->node3,
-        # bias->node1, bias->node2, bias->node3]
-        #
-        # Slice to calculate weights for node1 is [0::3], giving 4 total weights
+        # Layer = -1, j->k
+        # [n0->o0,
+        # n1->o0,
+        # n2->o0,
+        # n3->o0,
+        # bias->o0]
 
         # input --> hidden layer output calculations
         for node in range(self.hidden_layer_widths[0]):
@@ -128,10 +131,10 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
                 # Get output i (previous layer or pattern)
                 if layer != len(self.initial_weights):
-                    index_i = weight // num_nodes
+                    index_i = weight % (len(self.outputs[-layer - 1]) + 1)
                     O_i = self.outputs[-layer - 1][index_i] if index_i < len(self.outputs[-layer - 1]) else 1
                 else:
-                    index_i = weight % len(pattern)
+                    index_i = weight // len(self.outputs[-layer])
                     O_i = pattern[index_i]
 
                 # Calculate delta
@@ -198,25 +201,25 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         # random weight initialization (small random weights with 0 mean)
         # last weight in each array is the bias
         mean = 0
-        std_dev = 5
+        std_dev = 0.01
 
         weights = []
 
         # Generate input --> hidden weights
         num_input_weights = (self.pattern_elements + 1) * self.hidden_layer_widths[0]
-        #weights.append(np.zeros(num_input_weights))
-        weights.append(random.normal(mean, std_dev, num_input_weights))
+        weights.append(np.zeros(num_input_weights))
+        #weights.append(random.normal(mean, std_dev, num_input_weights))
 
         # Generate hidden --> hidden weights
         for i in range(1, len(self.hidden_layer_widths)):
             num_hidden_weights = (self.hidden_layer_widths[i-1] + 1) * self.hidden_layer_widths[i]
-            #weights.append(np.zeros(num_hidden_weights))
-            weights.append(random.normal(mean, std_dev, num_hidden_weights))
+            weights.append(np.zeros(num_hidden_weights))
+            #weights.append(random.normal(mean, std_dev, num_hidden_weights))
 
         # Generate hidden --> output weights
         num_output_weights = (self.hidden_layer_widths[-1] + 1) * self.num_predictions
-        #weights.append(np.zeros(num_output_weights))
-        weights.append(random.normal(mean, std_dev, num_output_weights))
+        weights.append(np.zeros(num_output_weights))
+        #weights.append(random.normal(mean, std_dev, num_output_weights))
 
         return weights
 
@@ -250,4 +253,8 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
     ### Not required by sk-learn but required by us for grading. Returns the weights.
     def get_weights(self):
-        return self.initial_weights
+        yeet = []
+        for layer in self.initial_weights:
+            yeet = np.concatenate((yeet, layer))
+
+        return yeet[::-1]
