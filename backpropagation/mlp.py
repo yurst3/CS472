@@ -51,26 +51,27 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         self.prev_weight_changes = [np.zeros(len(layer)) for layer in self.initial_weights]
 
         # Stochastic weight update (update after each trained pattern)
-        for i in range(self.num_patterns):
+        for epoch in range(100):
+            for i in range(self.num_patterns):
 
-            # Add bias to pattern
-            pattern = np.concatenate((X[i], np.array([1.])))
-            target = y[i]
+                # Add bias to pattern
+                pattern = np.concatenate((X[i], np.array([1.])))
+                target = y[i]
 
-            # Create output container for forward/back pass
-            self.outputs = [[] for i in range(len(self.initial_weights))]
+                # Create output container for forward/back pass
+                self.outputs = [[] for i in range(len(self.initial_weights))]
 
-            # Compute output at each node in all layers
-            self._foward(pattern)
+                # Compute output at each node in all layers
+                self._foward(pattern)
 
-            # Compute weight change for each layer
-            weight_changes = self._backward(pattern, target)
+                # Compute weight change for each layer
+                weight_changes = self._backward(pattern, target)
 
-            # Apply weight changes
-            self.initial_weights = [np.add(self.initial_weights[i], weight_changes[i])
-                                    for i in range(len(weight_changes))]
+                # Apply weight changes
+                self.initial_weights = [np.add(self.initial_weights[i], weight_changes[i])
+                                        for i in range(len(weight_changes))]
 
-            self.prev_weight_changes = weight_changes
+                self.prev_weight_changes = weight_changes
 
         return self
 
@@ -172,7 +173,21 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
             array, shape (n_samples,)
                 Predicted target values per element in X.
         """
-        pass
+        self.num_patterns = X.shape[0]
+        predictions = []
+
+        for i in range(self.num_patterns):
+            pattern = np.concatenate((X[i], np.array([1.])))
+
+            # Create output container for forward
+            self.outputs = [[] for i in range(len(self.initial_weights))]
+
+            # Compute output at each node in all layers
+            self._foward(pattern)
+
+            predictions.append(self.outputs[-1])
+
+        return predictions
 
     def initialize_weights(self):
         """ Initialize weights for perceptron. Don't forget the bias!
@@ -183,25 +198,25 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         # random weight initialization (small random weights with 0 mean)
         # last weight in each array is the bias
         mean = 0
-        std_dev = 0.01
+        std_dev = 5
 
         weights = []
 
         # Generate input --> hidden weights
         num_input_weights = (self.pattern_elements + 1) * self.hidden_layer_widths[0]
-        weights.append(np.zeros(num_input_weights))
-        #weights.append(random.normal(mean, std_dev, num_input_weights))
+        #weights.append(np.zeros(num_input_weights))
+        weights.append(random.normal(mean, std_dev, num_input_weights))
 
         # Generate hidden --> hidden weights
         for i in range(1, len(self.hidden_layer_widths)):
             num_hidden_weights = (self.hidden_layer_widths[i-1] + 1) * self.hidden_layer_widths[i]
-            weights.append(np.zeros(num_hidden_weights))
-            #weights.append(random.normal(mean, std_dev, num_hidden_weights))
+            #weights.append(np.zeros(num_hidden_weights))
+            weights.append(random.normal(mean, std_dev, num_hidden_weights))
 
         # Generate hidden --> output weights
         num_output_weights = (self.hidden_layer_widths[-1] + 1) * self.num_predictions
-        weights.append(np.zeros(num_output_weights))
-        #weights.append(random.normal(mean, std_dev, num_output_weights))
+        #weights.append(np.zeros(num_output_weights))
+        weights.append(random.normal(mean, std_dev, num_output_weights))
 
         return weights
 
@@ -217,7 +232,14 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
                 Mean accuracy of self.predict(X) wrt. y.
         """
 
-        return 0
+        predictions = self.predict(X)
+        error = 0
+
+        for i in range(y.shape[0]):
+            for j in range(y.shape[1]):
+                error += y[i][j] - predictions[i][j]
+
+        return error / (y.shape[0] * y.shape[1])
 
     def _shuffle_data(self, X, y):
         """ Shuffle the data! This _ prefix suggests that this method should only be called internally.

@@ -21,3 +21,6 @@ test_labels = mat[split+1:,-1].reshape(-1,1)
 # [3,3] = 2 hidden layers with 3 nodes
 mlp = MLPClassifier(lr=.1, momentum=.5, shuffle=False, hidden_layer_widths=[4])
 mlp.fit(training_data, training_labels)
+error = mlp.score(training_data, training_labels)
+
+print(error)
