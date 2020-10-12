@@ -48,8 +48,7 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         self.pattern_elements = X.shape[1]
         self.initial_weights = self.initialize_weights() if not initial_weights else initial_weights
 
-        self.prev_weight_changes = [np.zeros(i) for i in self.hidden_layer_widths]
-        self.prev_weight_changes.append(np.zeros(self.num_predictions))
+        self.prev_weight_changes = [np.zeros(len(layer)) for layer in self.initial_weights]
 
         # Stochastic weight update (update after each trained pattern)
         for i in range(self.num_patterns):
@@ -71,6 +70,7 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
             self.initial_weights = [np.add(self.initial_weights[i], weight_changes[i])
                                     for i in range(len(weight_changes))]
 
+            self.prev_weight_changes = weight_changes
 
         return self
 
@@ -152,8 +152,9 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
                     if node_j < num_nodes:
                         prev_deltas[-layer][node_j] = delta_j
 
-                # Append weight change to array
+                # Add momentum and append weight change to array
                 weight_change = self.lr * O_i * delta_j
+                weight_change += self.momentum * self.prev_weight_changes[-layer][weight]
                 weight_changes[-layer].append(weight_change)
 
         return weight_changes
@@ -183,19 +184,19 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
         # Generate input --> hidden weights
         num_input_weights = (self.pattern_elements + 1) * self.hidden_layer_widths[0]
-        #weights.append(np.zeros(num_input_weights))
-        weights.append(random.normal(mean, std_dev, num_input_weights))
+        weights.append(np.zeros(num_input_weights))
+        #weights.append(random.normal(mean, std_dev, num_input_weights))
 
         # Generate hidden --> hidden weights
         for i in range(1, len(self.hidden_layer_widths)):
             num_hidden_weights = (self.hidden_layer_widths[i-1] + 1) * self.hidden_layer_widths[i]
-            #weights.append(np.zeros(num_hidden_weights))
-            weights.append(random.normal(mean, std_dev, num_hidden_weights))
+            weights.append(np.zeros(num_hidden_weights))
+            #weights.append(random.normal(mean, std_dev, num_hidden_weights))
 
         # Generate hidden --> output weights
-        #weights.append(np.zeros(self.hidden_layer_widths[-1] * self.num_predictions))
         num_output_weights = (self.hidden_layer_widths[-1] + 1) * self.num_predictions
-        weights.append(random.normal(mean, std_dev, num_output_weights))
+        weights.append(np.zeros(num_output_weights))
+        #weights.append(random.normal(mean, std_dev, num_output_weights))
 
         return weights
 
