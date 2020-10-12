@@ -207,19 +207,19 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
         # Generate input --> hidden weights
         num_input_weights = (self.pattern_elements + 1) * self.hidden_layer_widths[0]
-        weights.append(np.zeros(num_input_weights))
-        #weights.append(random.normal(mean, std_dev, num_input_weights))
+        #weights.append(np.zeros(num_input_weights))
+        weights.append(random.normal(mean, std_dev, num_input_weights))
 
         # Generate hidden --> hidden weights
         for i in range(1, len(self.hidden_layer_widths)):
             num_hidden_weights = (self.hidden_layer_widths[i-1] + 1) * self.hidden_layer_widths[i]
-            weights.append(np.zeros(num_hidden_weights))
-            #weights.append(random.normal(mean, std_dev, num_hidden_weights))
+            #weights.append(np.zeros(num_hidden_weights))
+            weights.append(random.normal(mean, std_dev, num_hidden_weights))
 
         # Generate hidden --> output weights
         num_output_weights = (self.hidden_layer_widths[-1] + 1) * self.num_predictions
-        weights.append(np.zeros(num_output_weights))
-        #weights.append(random.normal(mean, std_dev, num_output_weights))
+        #weights.append(np.zeros(num_output_weights))
+        weights.append(random.normal(mean, std_dev, num_output_weights))
 
         return weights
 
