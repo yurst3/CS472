@@ -127,7 +127,7 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
                 # Get output i (previous layer or pattern)
                 if layer != len(self.initial_weights):
-                    index_i = weight % (self.hidden_layer_widths[-layer] + 1)
+                    index_i = weight // num_nodes
                     O_i = self.outputs[-layer - 1][index_i] if index_i < len(self.outputs[-layer - 1]) else 1
                 else:
                     index_i = weight % len(pattern)
@@ -138,19 +138,24 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
                     delta_j = (target[index_j] - O_j) * self._derivative(O_j)
                     prev_deltas[-layer][index_j] = delta_j
                 else:
-                    # node_j = 0   [h0->h0, h0->h1, h0->h2,
-                    # node_j = 1   h1->h0, h1->h1, h1->h2,
-                    # node_j = 2   h2->h0, h2->h1, h2->h2,
-                    # node_j = 3   bias->h0, bias->h1, bias->2]
+                    # Layer = -2, i->j
+                    # [in0->n0, in0->n1, in0->n2, in0->n3,
+                    # in1->n0, in1->n1, in1->n2, in1->n3,
+                    # bias->n0, bias->n1, bias->n2, bias->n3]
+                    #
+                    # Layer = -1, j->k
+                    # [n0->o0,
+                    # n1->o0,
+                    # n2->o0,
+                    # n3->o0,
+                    # bias->o0]
 
-                    node_j = weight // num_nodes
-                    w_jk = self.initial_weights[-layer][node_j:(node_j + num_nodes)]
-                    delta_k = np.array([prev_deltas[-layer + 1][i % len(self.outputs[-layer + 1])]
-                                        for i in range(node_j, node_j + num_nodes)])
+                    num_prev_nodes = len(self.outputs[-layer + 1])
+                    w_jk = self.initial_weights[-layer + 1][(index_j * num_prev_nodes):(index_j * num_prev_nodes) + num_prev_nodes]
+                    delta_k = prev_deltas[-layer + 1]
 
                     delta_j = np.dot(delta_k, w_jk) * self._derivative(O_j)
-                    if node_j < num_nodes:
-                        prev_deltas[-layer][node_j] = delta_j
+                    prev_deltas[-layer][index_j] = delta_j
 
                 # Add momentum and append weight change to array
                 weight_change = self.lr * O_i * delta_j
