@@ -3,6 +3,7 @@ from backpropagation.mlp import MLPClassifier
 import matplotlib.pyplot as plt
 import numpy as np
 import random
+import pandas
 
 debug = "../data/perceptron/debug/linsep2nonorigin.arff"
 eval = "../data/perceptron/evaluation/data_banknote_authentication.arff"
@@ -19,7 +20,9 @@ training_labels = mat[0:split,-1].reshape(-1,1)
 test_labels = mat[split+1:,-1].reshape(-1,1)
 
 # [3,3] = 2 hidden layers with 3 nodes
-mlp = MLPClassifier(lr=.1, momentum=.5, shuffle=False, hidden_layer_widths=[4])
+mlp = MLPClassifier(lr=.1, momentum=.5, shuffle=False, hidden_layer_widths=[training_data.shape[1] * 2])
 mlp.fit(training_data, training_labels)
+
+csv = pandas.read_csv("evaluation.csv")
 
 print(mlp.get_weights())
