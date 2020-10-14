@@ -238,11 +238,16 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         predictions = self.predict(X)
         error = 0
 
+        target_predictions = [[1 if i >= 0.5 else 0 for i in pred] for pred in predictions]
+
         for i in range(y.shape[0]):
             for j in range(y.shape[1]):
                 error += y[i][j] - predictions[i][j]
 
-        return error / (y.shape[0] * y.shape[1])
+        MSE = error / (y.shape[0] * y.shape[1])
+        Accuracy = sum([1 if target_predictions[i] == y[i] else 0 for i in range(len(target_predictions))]) / len(y)
+
+        return MSE, Accuracy
 
     def _shuffle_data(self, X, y):
         """ Shuffle the data! This _ prefix suggests that this method should only be called internally.
