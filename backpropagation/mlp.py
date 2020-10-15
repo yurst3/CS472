@@ -50,13 +50,31 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
         self.prev_weight_changes = [np.zeros(len(layer)) for layer in self.initial_weights]
 
-        # Stochastic weight update (update after each trained pattern)
-        for epoch in range(10):
-            for i in range(self.num_patterns):
+        val_set_split = int(self.num_patterns * 0.25)
+
+        window_size = 15
+        count = 0
+        bssf = float('inf')
+        vals = []
+        trains = []
+
+        while True:
+
+            if count == window_size:
+                break
+
+            if self.shuffle:
+                X, y = self._shuffle_data(X, y)
+
+            val_set = (X[:val_set_split], y[:val_set_split])
+            train_set = (X[val_set_split:], y[val_set_split:])
+
+            # Stochastic weight update (update after each trained pattern)
+            for i in range(len(train_set[0])):
 
                 # Add bias to pattern
-                pattern = np.concatenate((X[i], np.array([1.])))
-                target = y[i]
+                pattern = np.concatenate((train_set[0][i], np.array([1.])))
+                target = train_set[1][i]
 
                 # Create output container for forward/back pass
                 self.outputs = [[] for i in range(len(self.initial_weights))]
@@ -73,7 +91,19 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
                 self.prev_weight_changes = weight_changes
 
-        return self
+            MSE, accuracy = self.score(val_set[0], val_set[1])
+            vals.append([MSE, accuracy])
+
+            if MSE < bssf:
+                count = 0
+                bssf = MSE
+            else:
+                count += 1
+
+            MSE, accuracy = self.score(train_set[0], train_set[1])
+            trains.append(MSE)
+
+        return np.array(trains[:-window_size]), np.array(vals[:-window_size])
 
     def _activation(self, net):
         return 1 / (1 + (math.e ** (-net)))
@@ -190,7 +220,7 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
             predictions.append(self.outputs[-1])
 
-        return predictions
+        return np.array(predictions)
 
     def initialize_weights(self):
         """ Initialize weights for perceptron. Don't forget the bias!
@@ -238,14 +268,17 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         predictions = self.predict(X)
         error = 0
 
-        target_predictions = [[1 if i >= 0.5 else 0 for i in pred] for pred in predictions]
+        if predictions.shape[1] == 1:
+            target_predictions = [[round(i) for i in pred] for pred in predictions]
+        else:
+            target_predictions = [[1 if i == max(pred) else 0 for i in pred] for pred in predictions]
 
         for i in range(y.shape[0]):
             for j in range(y.shape[1]):
-                error += y[i][j] - predictions[i][j]
+                error += (y[i][j] - predictions[i][j]) ** 2
 
-        MSE = error / (y.shape[0] * y.shape[1])
-        Accuracy = sum([1 if target_predictions[i] == y[i] else 0 for i in range(len(target_predictions))]) / len(y)
+        MSE = error / y.shape[0]
+        Accuracy = sum([1 if all(target_predictions[i] == y[i]) else 0 for i in range(len(target_predictions))]) / len(y)
 
         return MSE, Accuracy
 
@@ -254,7 +287,10 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
             It might be easier to concatenate X & y and shuffle a single 2D array, rather than
              shuffling X and y exactly the same way, independently.
         """
-        pass
+        cat = np.concatenate((X, y), axis=1)
+        random.shuffle(cat)
+
+        return cat[:,:X.shape[1]], cat[:,X.shape[1]:]
 
     ### Not required by sk-learn but required by us for grading. Returns the weights.
     def get_weights(self):
