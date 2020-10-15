@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 import pandas as pd
+from tqdm import tqdm
 
 iris = "../data/backpropagation/iris.arff"
 vowel = "../data/backpropagation/vowel.arff"
@@ -25,30 +26,39 @@ test_labels = LabelBinarizer().fit_transform(pd.DataFrame(mat[split+1:,-1].resha
 
 results = []
 
-learning_rates = np.linspace(0.1, 1, 10)
-repeat = 10
+momentums = np.linspace(0, 1, 11)
+repeat = 5
 
-for lr in learning_rates:
-    avg = []
-    for i in range(repeat):
-        mlp = MLPClassifier(lr=lr, momentum=.9, shuffle=True, hidden_layer_widths=[training_data.shape[1] * 2])
-        trains, vals = mlp.fit(training_data, training_labels)
-        MSE, accuracy = mlp.score(test_data, test_labels)
+with tqdm(total=(len(momentums) * repeat)) as pbar:
+    for momentum in momentums:
+        avg = []
+        for i in range(repeat):
+            mlp = MLPClassifier(lr=0.1, momentum=momentum, shuffle=True, hidden_layer_widths=[64])
+            trains, vals = mlp.fit(training_data, training_labels)
+            MSE, accuracy = mlp.score(test_data, test_labels)
 
-        avg.append([trains[-1], vals[-1][0], MSE])
+            avg.append([trains[-1], vals[-1][0], MSE, accuracy, len(trains)])
+            pbar.update(1)
 
-    avg = np.array(avg)
-    results.append([sum(avg[:,0])/repeat, sum(avg[:,1])/repeat, sum(avg[:,2])/repeat])
+        avg = np.array(avg)
+        results.append([sum(avg[:,0])/repeat,
+                        sum(avg[:,1])/repeat,
+                        sum(avg[:,2])/repeat,
+                        sum(avg[:,3])/repeat,
+                        sum(avg[:,4])/repeat])
 
-    print("Lr: ", lr, " Avg MSE: ", results[-1][2])
+        pbar.set_description(f"Nodes: {momentum}, Avg Accuracy: {results[-1][3]}")
 
 results = np.array(results)
+np.save("results.npy", results)
 
-plt.plot(learning_rates, results[:,0], label="Train Set MSE")
-plt.plot(learning_rates, results[:,1], label="Val Set MSE")
-plt.plot(learning_rates, results[:,2], label="Test Set MSE")
+#results = np.load("results.npy")
+
+plt.plot(momentums, results[:, 0], label="Train Set MSE")
+plt.plot(momentums, results[:, 1], label="Val Set MSE")
+plt.plot(momentums, results[:, 2], label="Test Set MSE")
 plt.legend()
-plt.title("Final MSE At Different Learning Rates")
-plt.ylabel("MSE")
-plt.xlabel("Learning Rate")
+plt.title("Final MSE At Different Momentums")
+plt.ylabel("Final MSE")
+plt.xlabel("Momentum")
 plt.show()
