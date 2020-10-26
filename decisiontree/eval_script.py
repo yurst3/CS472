@@ -1,4 +1,4 @@
-from decisiontree.decisiontree import DTClassifier
+from decisiontree import DTClassifier
 from tools.arff import Arff
 import numpy as np
 
