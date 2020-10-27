@@ -2,7 +2,9 @@ from decisiontree import DTClassifier
 from tools.arff import Arff
 import numpy as np
 
-mat = Arff("../data/decisiontree/lenses.arff")
+lenses = "../data/decisiontree/lenses.arff"
+homework = "../data/decisiontree/homework.arff"
+mat = Arff(homework)
 
 counts = [] ## this is so you know how many types for each column
 

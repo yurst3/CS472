@@ -1,0 +1,17 @@
+@relation pizza
+
+@attribute meat {Y, N}
+@attribute crust {Thin, Deep, Stuffed}
+@attribute veggie {Y, N}
+@attribute quality {Great, Good, Bad}
+
+@data
+Y,Thin,N,Great
+N,Deep,N,Bad
+N,Stuffed,Y,Good
+Y,Stuffed,Y,Great
+Y,Deep,N,Good
+Y,Deep,Y,Great
+N,Thin,Y,Good
+Y,Deep,N,Good
+N,Thin,N,Bad

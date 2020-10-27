@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from sklearn.base import BaseEstimator, ClassifierMixin
+import scipy.stats as stats
 
 ### NOTE: The only methods you are required to have are:
 #   * predict
@@ -52,6 +53,8 @@ class DTClassifier(BaseEstimator,ClassifierMixin):
 
         self._build_decision_tree(X, y, total_info, self.root)
 
+        truth = self._tree_complete(self.root)
+
         return self
 
     def _build_decision_tree(self, X, y, total_info, node):
@@ -66,49 +69,47 @@ class DTClassifier(BaseEstimator,ClassifierMixin):
         # If this is not the root node
         else:
             # Convert to index that plays nice with self.count
-            attribute_index = np.argmin(info_gains)
+            attribute_index = np.argmax(info_gains)
             for split in node.attribute_splits:
-                if attribute_index > split:
+                if attribute_index >= split:
                     attribute_index += 1
 
         # Copy the current split path and append the new split
-        cur_split_copy = node.attribute_splits.copy()
-        cur_split_copy.append(attribute_index)
+        node.attribute_splits.append(attribute_index)
 
         # Delete the column with the chosen attribute to split on
-        new_X = np.delete(X, attribute_index, axis=1)
+        new_X = np.delete(X, np.argmax(info_gains), axis=1)
 
         # For each attribute value in the chosen split
         for attr_val in range(self.counts[attribute_index]):
-            where = np.array([y[row, 0] if X[row, attribute_index] == attr_val else np.NaN for row in range(X.shape[0])])
-            where = where[~np.isnan(where)]
+            check = [True if X[row, np.argmax(info_gains)] == attr_val else False for row in range(X.shape[0])]
+            new_y = y[check]
+
+            cur_split_copy = node.attribute_splits.copy()
 
             # If this is a pure node, assign a target attribute
-            if max(where) - min(where) == 0:
+            if max(new_y) - min(new_y) == 0:
                 node.children.append(_Node(attr_splits=cur_split_copy,
-                                           decision=where[0]))
+                                           decision=new_y[0]))
 
             # If this isn't a pure node, keep splitting
             else:
-                check = [True if X[row, attribute_index] == attr_val else False for row in range(X.shape[0])]
-                new_y = y[check]
-
                 # Check if there are any attributes left
-                if new_X.shape[0] > 0:
+                if new_X.shape[1] > 1:
                     node.children.append(_Node(attr_splits=cur_split_copy))
 
                     # Remove all other attribute values that aren't this one
-                    new_X = new_X[check]
+                    next_X = new_X[check]
 
-                    self._build_decision_tree(X=new_X,
+                    self._build_decision_tree(X=next_X,
                                               y=new_y,
                                               total_info=(total_info - max(info_gains)),
                                               node=node.children[-1])
 
                 # If there aren't any attributes left to split on and this node is impure
                 else:
-                    # Take decide based on the first target attribute
-                    node.children.append(_Node(attr_splits=cur_split_copy, decision=new_y[0]))
+                    # Decide based on the mode of the new Y
+                    node.children.append(_Node(attr_splits=cur_split_copy, decision=stats.mode(new_y)[0][0]))
 
 
     def _tree_complete(self, node):
@@ -138,11 +139,11 @@ class DTClassifier(BaseEstimator,ClassifierMixin):
 
                 # For each target value
                 for k in range(int(max(y[:,0]) - min(y[:,0])) + 1):
-                    where = [1 if X[row, 0] == j and y[row, 0] == k else 0 for row in range(X.shape[0])]
+                    where = [1 if X[row, i] == j and y[row, 0] == k else 0 for row in range(X.shape[0])]
                     s_k = sum(where) / values
-                    info_s_j += -s_k * math.log2(s_k) if s_k != 0 else 0
+                    info_s_j += s_k * math.log2(s_k) if s_k != 0 else 0
 
-                info_gains[i] += s_j * info_s_j
+                info_gains[i] += s_j * -info_s_j
 
             info_gains[i] = total_info - info_gains[i]
 
