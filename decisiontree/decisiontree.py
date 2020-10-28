@@ -8,9 +8,10 @@ import scipy.stats as stats
 #   * fit
 #   * score
 class _Node:
-    def __init__(self, attr_splits, decision=None):
+    def __init__(self, attr_splits, decision, target_decision=None):
         self.attribute_splits = attr_splits
         self.decision = decision
+        self.target_decision = target_decision
         self.children = []
 
 class DTClassifier(BaseEstimator,ClassifierMixin):
@@ -33,7 +34,7 @@ class DTClassifier(BaseEstimator,ClassifierMixin):
 
         """
         self.counts = counts
-        self.root = _Node([])
+        self.root = _Node([], decision=None)
 
     def fit(self, X, y):
         """ Fit the data; Make the Desicion tree
@@ -50,7 +51,7 @@ class DTClassifier(BaseEstimator,ClassifierMixin):
         total_info = 0
         for i in range(self.counts[-1]):
             p_i = sum(np.where(y == i, 1, 0)) / y.shape[0]
-            total_info += -p_i * math.log2(p_i)
+            total_info += -p_i * math.log2(p_i) if p_i != 0 else 0
 
         self._build_decision_tree(X, y, total_info, self.root, np.arange(X.shape[1]))
 
@@ -83,13 +84,15 @@ class DTClassifier(BaseEstimator,ClassifierMixin):
             # If this is a pure node, assign a target attribute
             if max(new_y) - min(new_y) == 0:
                 node.children.append(_Node(attr_splits=cur_split_copy,
-                                           decision=new_y[0]))
+                                           decision=attr_val,
+                                           target_decision=new_y[0]))
 
             # If this isn't a pure node, keep splitting
             else:
                 # Check if there are any attributes left
                 if new_X.shape[1] > 0:
-                    node.children.append(_Node(attr_splits=cur_split_copy))
+                    node.children.append(_Node(attr_splits=cur_split_copy,
+                                               decision=attr_val))
 
                     # Remove all other attribute values that aren't this one
                     next_X = new_X[check]
@@ -104,13 +107,15 @@ class DTClassifier(BaseEstimator,ClassifierMixin):
                 # If there aren't any attributes left to split on and this node is impure
                 else:
                     # Decide based on the mode of the new Y
-                    node.children.append(_Node(attr_splits=cur_split_copy, decision=stats.mode(new_y)[0][0]))
+                    node.children.append(_Node(attr_splits=cur_split_copy,
+                                               decision=attr_val,
+                                               target_decision=stats.mode(new_y)[0][0]))
 
     def _tree_complete(self, node):
 
         # Base case
         if len(node.children) == 0:
-            return False if node.decision is None else True
+            return False if node.target_decision is None else True
 
         # Recursion
         else:
@@ -161,8 +166,8 @@ class DTClassifier(BaseEstimator,ClassifierMixin):
 
     def _decide(self, node, data):
 
-        if node.decision is not None:
-            return node.decision[0]
+        if node.target_decision is not None:
+            return node.target_decision[0]
 
         else:
             answer = data[node.attribute_splits[-1]]

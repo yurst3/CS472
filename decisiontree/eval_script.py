@@ -7,7 +7,7 @@ all_lenses = "../data/decisiontree/all_lenses.arff"
 zoo = "../data/decisiontree/zoo.arff"
 all_zoo = "../data/decisiontree/all_zoo.arff"
 homework = "../data/decisiontree/homework.arff"
-mat = Arff(lenses)
+mat = Arff(zoo)
 
 counts = [] ## this is so you know how many types for each column
 
@@ -19,7 +19,7 @@ labels = mat.data[:,-1].reshape(-1,1)
 DTClass = DTClassifier(counts)
 DTClass.fit(data,labels)
 
-mat2 = Arff(all_lenses)
+mat2 = Arff(all_zoo)
 data2 = mat2.data[:,0:-1]
 labels2 = mat2.data[:,-1]
 
