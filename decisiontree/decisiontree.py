@@ -11,6 +11,7 @@ class _Node:
     def __init__(self, attr_splits, decision, target_decision=None):
         self.attribute_splits = attr_splits
         self.decision = decision
+        # None if not a leaf node
         self.target_decision = target_decision
         self.children = []
 
@@ -171,7 +172,9 @@ class DTClassifier(BaseEstimator,ClassifierMixin):
 
         else:
             answer = data[node.attribute_splits[-1]]
-            return self._decide(node.children[int(answer)], data)
+            for child in node.children:
+                if child.decision == answer:
+                    return self._decide(child, data)
 
     def score(self, X, y):
         """ Return accuracy(Classification Acc) of model on a given dataset. Must implement own score function.
