@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.base import BaseEstimator, ClusterMixin
 from math import sqrt
-from tqdm import tqdm
 
 class HACClustering(BaseEstimator,ClusterMixin):
 
@@ -36,48 +35,45 @@ class HACClustering(BaseEstimator,ClusterMixin):
         self.cluster_instances = {tuple([index]): set(map(tuple, np.expand_dims(value, axis=0))) for index, value in enumerate(X)}
 
         # While we have more than the desired number of clusters
-        with tqdm(total=X.shape[0] - self.k) as pbar:
-            while len(self.cluster_instances) > self.k:
+        while len(self.cluster_instances) > self.k:
 
-                # Get row/column indices of the min distance
-                b, a = np.unravel_index(distance_matrix.argmin(), distance_matrix.shape)
+            # Get row/column indices of the min distance
+            b, a = np.unravel_index(distance_matrix.argmin(), distance_matrix.shape)
 
-                # Perform key lookup with for item a and item b
-                b_key = distance_cluster[b]
-                a_key = distance_cluster[a]
+            # Perform key lookup with for item a and item b
+            b_key = distance_cluster[b]
+            a_key = distance_cluster[a]
 
-                # Perform set lookup with each key
-                b_set = self.cluster_instances[b_key]
-                a_set = self.cluster_instances[a_key]
+            # Perform set lookup with each key
+            b_set = self.cluster_instances[b_key]
+            a_set = self.cluster_instances[a_key]
 
-                # Join the keys and the sets
-                key_join = b_key + a_key
-                set_join = b_set.union(a_set)
+            # Join the keys and the sets
+            key_join = b_key + a_key
+            set_join = b_set.union(a_set)
 
-                # Remove old (cluster --> instances) mapping and add new one
-                del self.cluster_instances[b_key]
-                del self.cluster_instances[a_key]
-                self.cluster_instances[key_join] = set_join
+            # Remove old (cluster --> instances) mapping and add new one
+            del self.cluster_instances[b_key]
+            del self.cluster_instances[a_key]
+            self.cluster_instances[key_join] = set_join
 
-                # Remove old (distance matrix index --> cluster) mapping and add new one
-                del distance_cluster[b]
-                distance_cluster[a] = key_join
+            # Remove old (distance matrix index --> cluster) mapping and add new one
+            del distance_cluster[b]
+            distance_cluster[a] = key_join
 
-                # Update distances from cluster (a,b) to all other nodes
-                for i in range(X.shape[0]):
-                    dis_b = distance_matrix[b][i] if i < b else distance_matrix[i][b]
-                    if i < a:
-                        dis_a = distance_matrix[a][i]
-                        distance_matrix[a][i] = min((dis_a, dis_b)) if self.link_type is 'single' else max((dis_a, dis_b))
-                    elif i > a:
-                        dis_a = distance_matrix[i][a]
-                        distance_matrix[i][a] = min((dis_a, dis_b)) if self.link_type is 'single' else max((dis_a, dis_b))
+            # Update distances from cluster (a,b) to all other nodes
+            for i in range(X.shape[0]):
+                dis_b = distance_matrix[b][i] if i < b else distance_matrix[i][b]
+                if i < a:
+                    dis_a = distance_matrix[a][i]
+                    distance_matrix[a][i] = min((dis_a, dis_b)) if self.link_type == 'single' else max((dis_a, dis_b))
+                elif i > a:
+                    dis_a = distance_matrix[i][a]
+                    distance_matrix[i][a] = min((dis_a, dis_b)) if self.link_type == 'single' else max((dis_a, dis_b))
 
-                # Set row and column corresponding to item b to infinity
-                distance_matrix[b,:] = float('inf')
-                distance_matrix[:,b] = float('inf')
-
-                pbar.update(1)
+            # Set row and column corresponding to item b to infinity
+            distance_matrix[b,:] = float('inf')
+            distance_matrix[:,b] = float('inf')
 
         return self
 
@@ -120,7 +116,7 @@ class HACClustering(BaseEstimator,ClusterMixin):
             SSEs.append(self._calc_SSE(centroids[-1], cluster))
             cluster_lens.append(len(cluster))
 
-        # Print in the weird formatting requirments
+        # Print in the weird formatting requirements
         f = open(filename, "w+")
         f.write("{:d}\n".format(self.k))
         f.write("{:.4f}\n\n".format(sum(SSEs)))
